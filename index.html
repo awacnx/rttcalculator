@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RTT Shift Calculator</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0f1a;
+    --surface: #111827;
+    --surface2: #1a2235;
+    --border: #1e2d45;
+    --accent: #00d4aa;
+    --blue: #3b82f6;
+    --green: #10b981;
+    --warn: #f59e0b;
+    --text: #e2e8f0;
+    --muted: #64748b;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    font-family: 'IBM Plex Sans Thai', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 20px 14px 40px;
+  }
+  h1 {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 1.1rem;
+    color: var(--accent);
+    text-align: center;
+    letter-spacing: 0.06em;
+    margin-bottom: 4px;
+  }
+  .sub { text-align:center; color:var(--muted); font-size:0.75rem; margin-bottom:20px; }
+
+  .budget-bar {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 14px;
+  }
+  .bcard {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px;
+  }
+  .bcard label {
+    display:block;
+    font-size:0.65rem;
+    text-transform:uppercase;
+    letter-spacing:0.08em;
+    color:var(--muted);
+    margin-bottom:5px;
+  }
+  .bcard input {
+    width:100%;
+    background:var(--surface2);
+    border:1px solid var(--border);
+    color:var(--accent);
+    padding:6px 8px;
+    border-radius:6px;
+    font-family:'IBM Plex Mono',monospace;
+    font-size:0.95rem;
+    text-align:right;
+  }
+  .bcard input:focus { outline:none; border-color:var(--accent); }
+
+  .topup-bar {
+    background: rgba(0,212,170,0.07);
+    border: 1px solid var(--accent);
+    border-radius: 10px;
+    padding: 12px 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+  }
+  .topup-bar .lbl { font-size:0.75rem; color:var(--muted); }
+  .topup-bar .note { font-size:0.62rem; color:var(--muted); margin-top:2px; }
+  .topup-bar .val {
+    font-family:'IBM Plex Mono',monospace;
+    font-size:1.15rem;
+    font-weight:600;
+    color:var(--accent);
+  }
+
+  .legend {
+    display:flex;
+    flex-direction:column;
+    gap:4px;
+    margin-bottom:10px;
+    padding-left:4px;
+  }
+  .leg {
+    display:flex;
+    align-items:center;
+    gap:6px;
+    font-size:0.67rem;
+    color:var(--muted);
+  }
+  .leg-dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+
+  .tbl-head {
+    display: grid;
+    grid-template-columns: 30px minmax(0,2fr) 50px 50px 68px 76px;
+    gap:4px;
+    padding: 8px 10px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px 10px 0 0;
+    border-bottom: none;
+  }
+  .tbl-head span {
+    font-size:0.59rem;
+    text-transform:uppercase;
+    letter-spacing:0.06em;
+    color:var(--muted);
+    text-align:center;
+    line-height:1.3;
+  }
+  .tbl-head span:nth-child(2) { text-align:left; }
+
+  .staff-list {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 0 0 10px 10px;
+    overflow: hidden;
+    margin-bottom: 16px;
+  }
+
+  .srow {
+    display: grid;
+    grid-template-columns: 30px minmax(0,2fr) 50px 50px 68px 76px;
+    gap:4px;
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--border);
+    align-items: center;
+    transition: opacity 0.2s;
+  }
+  .srow:last-child { border-bottom:none; }
+  .srow.off { opacity:0.2; pointer-events:none; }
+  .srow.off .toggle { pointer-events:all; opacity:1; }
+  .srow.sim-active { border-left: 3px solid var(--blue); }
+
+  .toggle {
+    position:relative;
+    width:28px; height:16px;
+    cursor:pointer;
+    flex-shrink:0;
+  }
+  .toggle input { display:none; }
+  .toggle-track {
+    width:28px; height:16px;
+    background:#1e2d45;
+    border-radius:99px;
+    transition:background 0.2s;
+    display:block;
+  }
+  .toggle input:checked ~ .toggle-track { background:var(--green); }
+  .toggle-thumb {
+    position:absolute;
+    top:2px; left:2px;
+    width:12px; height:12px;
+    background:#fff;
+    border-radius:50%;
+    transition:left 0.2s;
+    pointer-events:none;
+  }
+  .toggle input:checked ~ .toggle-thumb { left:14px; }
+
+  .sname {
+    font-size:0.78rem;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+  }
+
+  .sim-wrap { display:flex; align-items:center; justify-content:center; }
+  .sim-wrap input[type=checkbox] { display:none; }
+  .sim-wrap label {
+    font-size:0.6rem;
+    padding:3px 6px;
+    border-radius:5px;
+    cursor:pointer;
+    border:1px solid var(--border);
+    color:var(--muted);
+    background:var(--surface2);
+    transition:all 0.15s;
+    font-family:'IBM Plex Mono',monospace;
+    user-select:none;
+  }
+  .sim-wrap input:checked ~ label {
+    background:rgba(59,130,246,0.2);
+    color:var(--blue);
+    border-color:var(--blue);
+  }
+
+  .num-input {
+    width:100%;
+    background:var(--surface2);
+    border:1px solid var(--border);
+    color:var(--text);
+    padding:5px 4px;
+    border-radius:6px;
+    font-family:'IBM Plex Mono',monospace;
+    font-size:0.8rem;
+    text-align:center;
+    -moz-appearance:textfield;
+  }
+  .num-input::-webkit-outer-spin-button,
+  .num-input::-webkit-inner-spin-button { -webkit-appearance:none; }
+  .num-input:focus { outline:none; border-color:var(--accent); }
+
+  /* sim extra = baht input, tinted blue */
+  .num-input.sim-amt {
+    border-color:rgba(59,130,246,0.4);
+    color:var(--blue);
+    background:rgba(59,130,246,0.07);
+  }
+  .num-input.sim-amt:focus { border-color:var(--blue); }
+
+  /* xray extra = days, tinted green */
+  .num-input.xray-days {
+    border-color:rgba(16,185,129,0.4);
+    color:var(--green);
+    background:rgba(16,185,129,0.07);
+  }
+  .num-input.xray-days:focus { border-color:var(--green); }
+
+  .extra-hint {
+    font-size:0.56rem;
+    text-align:center;
+    margin-top:2px;
+    color:var(--muted);
+  }
+
+  .total-val {
+    font-family:'IBM Plex Mono',monospace;
+    font-size:0.82rem;
+    font-weight:500;
+    color:var(--accent);
+    text-align:right;
+    padding-right:2px;
+    white-space:nowrap;
+  }
+  .total-val.sim-color { color:var(--blue); }
+  .total-val.dash { color:var(--muted); font-size:0.7rem; }
+
+  .summary {
+    display:grid;
+    grid-template-columns:1fr 1fr 1fr;
+    gap:8px;
+  }
+  .scard {
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:10px;
+    padding:10px;
+    text-align:center;
+  }
+  .scard .slbl { font-size:0.6rem; color:var(--muted); text-transform:uppercase; letter-spacing:0.07em; margin-bottom:4px; }
+  .scard .sval { font-family:'IBM Plex Mono',monospace; font-size:0.88rem; }
+  .scard.hi .sval { color:var(--accent); }
+  .scard.wa .sval { color:var(--warn); }
+</style>
+</head>
+<body>
+
+<h1>RTT SHIFT CALCULATOR</h1>
+<p class="sub">ห้องฉายแสง + Sim — คำนวณค่าเวรรายเดือน</p>
+
+<div class="budget-bar">
+  <div class="bcard">
+    <label>Budget รวม (฿)</label>
+    <input type="number" id="budget" value="95000" oninput="recalc()">
+  </div>
+  <div class="bcard">
+    <label>Extra ฉายแสง (฿/วัน)</label>
+    <input type="number" id="rateE" value="1300" oninput="recalc()">
+  </div>
+</div>
+
+<div class="topup-bar">
+  <div>
+    <div class="lbl">Topup ต่อหัว</div>
+    <div class="note" id="topupNote">คำนวณอัตโนมัติ</div>
+  </div>
+  <div class="val" id="topupDisplay">—</div>
+</div>
+
+<div class="legend">
+  <div class="leg">
+    <div class="leg-dot" style="background:var(--green)"></div>
+    <span>ฉายแสง: U×650 + Extra(วัน)×1,300 + topup</span>
+  </div>
+  <div class="leg">
+    <div class="leg-dot" style="background:var(--blue)"></div>
+    <span>SIM: U×650 + Extra(฿ กรอกตรง) + topup</span>
+  </div>
+</div>
+
+<div class="tbl-head">
+  <span>ON</span>
+  <span>ชื่อ</span>
+  <span>SIM</span>
+  <span>U<br>เวร</span>
+  <span>Extra<br>(วัน/฿)</span>
+  <span>รวม</span>
+</div>
+<div class="staff-list" id="staffList"></div>
+
+<div class="summary">
+  <div class="scard">
+    <div class="slbl">คนเปิด</div>
+    <div class="sval" id="sumActive">—</div>
+  </div>
+  <div class="scard wa">
+    <div class="slbl">จ่ายไปแล้ว</div>
+    <div class="sval" id="sumSpent">—</div>
+  </div>
+  <div class="scard hi">
+    <div class="slbl">Pool เหลือ</div>
+    <div class="sval" id="sumPool">—</div>
+  </div>
+</div>
+
+<script>
+const NAMES = Array.from({length:14}, (_,i) => `RTT ${i+1}`);
+const RATE_U = 650;
+
+function buildRows() {
+  const list = document.getElementById('staffList');
+  list.innerHTML = '';
+  NAMES.forEach((name, i) => {
+    const row = document.createElement('div');
+    row.className = 'srow';
+    row.id = `row_${i}`;
+    row.innerHTML = `
+      <label class="toggle">
+        <input type="checkbox" id="on_${i}" checked onchange="toggleRow(${i})">
+        <span class="toggle-track"></span>
+        <span class="toggle-thumb"></span>
+      </label>
+      <div class="sname">${name}</div>
+      <div class="sim-wrap">
+        <input type="checkbox" id="sim_${i}" onchange="toggleSim(${i})">
+        <label for="sim_${i}">SIM</label>
+      </div>
+      <input class="num-input" type="number" id="u_${i}" value="7" min="0" max="20" oninput="recalc()">
+      <div>
+        <input class="num-input xray-days" type="number" id="e_${i}" value="0" min="0" oninput="recalc()" placeholder="0">
+        <div class="extra-hint" id="ehint_${i}">วัน ×1,300</div>
+      </div>
+      <div class="total-val dash" id="total_${i}">—</div>
+    `;
+    list.appendChild(row);
+  });
+}
+
+function toggleRow(i) {
+  const on = document.getElementById(`on_${i}`).checked;
+  document.getElementById(`row_${i}`).classList.toggle('off', !on);
+  recalc();
+}
+
+function toggleSim(i) {
+  const isSim = document.getElementById(`sim_${i}`).checked;
+  const row = document.getElementById(`row_${i}`);
+  const eInput = document.getElementById(`e_${i}`);
+  const eHint = document.getElementById(`ehint_${i}`);
+  row.classList.toggle('sim-active', isSim);
+  if (isSim) {
+    eInput.className = 'num-input sim-amt';
+    eInput.placeholder = '฿';
+    eHint.textContent = 'บาท (ตรง)';
+    eInput.value = 0;
+  } else {
+    eInput.className = 'num-input xray-days';
+    eInput.placeholder = '0';
+    eHint.textContent = 'วัน ×1,300';
+    eInput.value = 0;
+  }
+  recalc();
+}
+
+function fmt(n) {
+  return n.toLocaleString('th-TH', {maximumFractionDigits:0}) + '฿';
+}
+
+function recalc() {
+  const budget = parseFloat(document.getElementById('budget').value) || 0;
+  const rateE = parseFloat(document.getElementById('rateE').value) || 1300;
+
+  let totalShift = 0, totalExtra = 0, activeCount = 0;
+
+  for (let i = 0; i < 14; i++) {
+    if (!document.getElementById(`on_${i}`).checked) continue;
+    activeCount++;
+    const isSim = document.getElementById(`sim_${i}`).checked;
+    const u = parseInt(document.getElementById(`u_${i}`).value) || 0;
+    const eRaw = parseFloat(document.getElementById(`e_${i}`).value) || 0;
+    totalShift += u * RATE_U;
+    totalExtra += isSim ? eRaw : eRaw * rateE;
+  }
+
+  const spent = totalShift + totalExtra;
+  const pool = budget - spent;
+  const topup = activeCount > 0 ? pool / activeCount : 0;
+
+  document.getElementById('topupDisplay').textContent = fmt(topup);
+  document.getElementById('topupNote').textContent = `pool ${fmt(pool)} ÷ ${activeCount} คน`;
+  document.getElementById('sumActive').textContent = activeCount + ' คน';
+  document.getElementById('sumSpent').textContent = fmt(spent);
+  document.getElementById('sumPool').textContent = fmt(pool);
+
+  for (let i = 0; i < 14; i++) {
+    const on = document.getElementById(`on_${i}`).checked;
+    const totalEl = document.getElementById(`total_${i}`);
+    if (!on) {
+      totalEl.textContent = '—';
+      totalEl.className = 'total-val dash';
+      continue;
+    }
+    const isSim = document.getElementById(`sim_${i}`).checked;
+    const u = parseInt(document.getElementById(`u_${i}`).value) || 0;
+    const eRaw = parseFloat(document.getElementById(`e_${i}`).value) || 0;
+    const extraAmt = isSim ? eRaw : eRaw * rateE;
+    const total = (u * RATE_U) + extraAmt + topup;
+    totalEl.textContent = fmt(total);
+    totalEl.className = isSim ? 'total-val sim-color' : 'total-val';
+  }
+}
+
+buildRows();
+recalc();
+</script>
+</body>
+</html>
